@@ -37,8 +37,8 @@
         <module>connector-http-e2e</module>
         <module>connector-rabbitmq-e2e</module>
         <module>connector-kafka-e2e</module>
-        <module>connector-doris-e2e</module>
         <module>connector-elasticsearch-e2e</module>
+        <module>connector-iotdb-e2e</module>
         <module>connector-datahub-e2e</module>
     </modules>
 
