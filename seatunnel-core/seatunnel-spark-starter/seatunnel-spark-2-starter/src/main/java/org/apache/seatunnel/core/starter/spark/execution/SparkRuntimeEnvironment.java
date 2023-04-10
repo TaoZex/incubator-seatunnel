@@ -28,8 +28,6 @@ import org.apache.seatunnel.core.starter.execution.RuntimeEnvironment;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.streaming.Seconds;
-import org.apache.spark.streaming.StreamingContext;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -154,14 +152,17 @@ public class SparkRuntimeEnvironment implements RuntimeEnvironment {
         if (config.hasPath(EnvCommonOptions.CHECKPOINT_INTERVAL.key())) {
             return config.getLong(EnvCommonOptions.CHECKPOINT_INTERVAL.key());
         }
-        return sparkConf.getLong(EnvCommonOptions.CHECKPOINT_INTERVAL.key(), DEFAULT_SPARK_STREAMING_DURATION);
+        return sparkConf.getLong(
+                EnvCommonOptions.CHECKPOINT_INTERVAL.key(), DEFAULT_SPARK_STREAMING_DURATION);
     }
 
-    public String getCheckpointPath(){
-        if(config.hasPath(SparkExecuteOption.CHECKPOINT_LOCATION.key())){
+    public String getCheckpointPath() {
+        if (config.hasPath(SparkExecuteOption.CHECKPOINT_LOCATION.key())) {
             return config.getString(SparkExecuteOption.CHECKPOINT_LOCATION.key());
         }
-        return sparkConf.get(SparkExecuteOption.CHECKPOINT_LOCATION.key(), SparkExecuteOption.CHECKPOINT_LOCATION.defaultValue());
+        return sparkConf.get(
+                SparkExecuteOption.CHECKPOINT_LOCATION.key(),
+                SparkExecuteOption.CHECKPOINT_LOCATION.defaultValue());
     }
 
     public static SparkRuntimeEnvironment getInstance(Config config) {

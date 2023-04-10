@@ -39,9 +39,9 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQueryException;
+import org.apache.spark.sql.streaming.Trigger;
 
 import com.google.common.collect.Lists;
-import org.apache.spark.sql.streaming.Trigger;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -49,76 +49,76 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class SinkExecuteProcessor
-    extends SparkAbstractPluginExecuteProcessor<SeaTunnelSink<?, ?, ?, ?>> {
+        extends SparkAbstractPluginExecuteProcessor<SeaTunnelSink<?, ?, ?, ?>> {
     private static final String PLUGIN_TYPE = PluginType.SINK.getType();
 
     protected SinkExecuteProcessor(
-        SparkRuntimeEnvironment sparkRuntimeEnvironment,
-        JobContext jobContext,
-        List<? extends Config> pluginConfigs) {
+            SparkRuntimeEnvironment sparkRuntimeEnvironment,
+            JobContext jobContext,
+            List<? extends Config> pluginConfigs) {
         super(sparkRuntimeEnvironment, jobContext, pluginConfigs);
     }
 
     @Override
     protected List<SeaTunnelSink<?, ?, ?, ?>> initializePlugins(
-        List<? extends Config> pluginConfigs) {
+            List<? extends Config> pluginConfigs) {
         SeaTunnelSinkPluginDiscovery sinkPluginDiscovery = new SeaTunnelSinkPluginDiscovery();
         List<URL> pluginJars = new ArrayList<>();
         List<SeaTunnelSink<?, ?, ?, ?>> sinks =
-            pluginConfigs.stream()
-                .map(
-                    sinkConfig -> {
-                        PluginIdentifier pluginIdentifier =
-                            PluginIdentifier.of(
-                                ENGINE_TYPE,
-                                PLUGIN_TYPE,
-                                sinkConfig.getString(PLUGIN_NAME));
-                        pluginJars.addAll(
-                            sinkPluginDiscovery.getPluginJarPaths(
-                                Lists.newArrayList(pluginIdentifier)));
-                        SeaTunnelSink<?, ?, ?, ?> seaTunnelSink =
-                            sinkPluginDiscovery.createPluginInstance(
-                                pluginIdentifier);
-                        seaTunnelSink.prepare(sinkConfig);
-                        seaTunnelSink.setJobContext(jobContext);
-                        if (SupportDataSaveMode.class.isAssignableFrom(
-                            seaTunnelSink.getClass())) {
-                            SupportDataSaveMode saveModeSink =
-                                (SupportDataSaveMode) seaTunnelSink;
-                            saveModeSink.checkOptions(sinkConfig);
-                        }
-                        return seaTunnelSink;
-                    })
-                .distinct()
-                .collect(Collectors.toList());
+                pluginConfigs.stream()
+                        .map(
+                                sinkConfig -> {
+                                    PluginIdentifier pluginIdentifier =
+                                            PluginIdentifier.of(
+                                                    ENGINE_TYPE,
+                                                    PLUGIN_TYPE,
+                                                    sinkConfig.getString(PLUGIN_NAME));
+                                    pluginJars.addAll(
+                                            sinkPluginDiscovery.getPluginJarPaths(
+                                                    Lists.newArrayList(pluginIdentifier)));
+                                    SeaTunnelSink<?, ?, ?, ?> seaTunnelSink =
+                                            sinkPluginDiscovery.createPluginInstance(
+                                                    pluginIdentifier);
+                                    seaTunnelSink.prepare(sinkConfig);
+                                    seaTunnelSink.setJobContext(jobContext);
+                                    if (SupportDataSaveMode.class.isAssignableFrom(
+                                            seaTunnelSink.getClass())) {
+                                        SupportDataSaveMode saveModeSink =
+                                                (SupportDataSaveMode) seaTunnelSink;
+                                        saveModeSink.checkOptions(sinkConfig);
+                                    }
+                                    return seaTunnelSink;
+                                })
+                        .distinct()
+                        .collect(Collectors.toList());
         sparkRuntimeEnvironment.registerPlugin(pluginJars);
         return sinks;
     }
 
     @Override
     public List<Dataset<Row>> execute(List<Dataset<Row>> upstreamDataStreams)
-        throws TaskExecuteException {
+            throws TaskExecuteException {
         Dataset<Row> input = upstreamDataStreams.get(0);
         for (int i = 0; i < plugins.size(); i++) {
             Config sinkConfig = pluginConfigs.get(i);
             SeaTunnelSink<?, ?, ?, ?> seaTunnelSink = plugins.get(i);
             Dataset<Row> dataset =
-                fromSourceTable(sinkConfig, sparkRuntimeEnvironment).orElse(input);
+                    fromSourceTable(sinkConfig, sparkRuntimeEnvironment).orElse(input);
             int parallelism;
             if (sinkConfig.hasPath(CommonOptions.PARALLELISM.key())) {
                 parallelism = sinkConfig.getInt(CommonOptions.PARALLELISM.key());
             } else {
                 parallelism =
-                    sparkRuntimeEnvironment
-                        .getSparkConf()
-                        .getInt(
-                            CommonOptions.PARALLELISM.key(),
-                            CommonOptions.PARALLELISM.defaultValue());
+                        sparkRuntimeEnvironment
+                                .getSparkConf()
+                                .getInt(
+                                        CommonOptions.PARALLELISM.key(),
+                                        CommonOptions.PARALLELISM.defaultValue());
             }
             dataset.sparkSession().read().option(CommonOptions.PARALLELISM.key(), parallelism);
             // TODO modify checkpoint location
             seaTunnelSink.setTypeInfo(
-                (SeaTunnelRowType) TypeConverterUtils.convert(dataset.schema()));
+                    (SeaTunnelRowType) TypeConverterUtils.convert(dataset.schema()));
             if (SupportDataSaveMode.class.isAssignableFrom(seaTunnelSink.getClass())) {
                 SupportDataSaveMode saveModeSink = (SupportDataSaveMode) seaTunnelSink;
                 DataSaveMode dataSaveMode = saveModeSink.getDataSaveMode();
@@ -127,19 +127,23 @@ public class SinkExecuteProcessor
 
             if (sparkRuntimeEnvironment.getJobMode().equals(JobMode.BATCH)) {
                 SparkSinkInjector.inject(dataset.write(), seaTunnelSink)
-                    .mode(SaveMode.Append)
-                    .save();
+                        .mode(SaveMode.Append)
+                        .save();
             } else {
                 try {
                     SparkSinkInjector.inject(dataset.writeStream(), seaTunnelSink)
-                        .option(SparkExecuteOption.CHECKPOINT_LOCATION.key(), sparkRuntimeEnvironment.getCheckpointPath())
-                        .outputMode(OutputMode.Append())
-                        .trigger(Trigger.Continuous(sparkRuntimeEnvironment.getCheckpointInterval()))
-                        .start()
-                        .awaitTermination();
+                            .option(
+                                    SparkExecuteOption.CHECKPOINT_LOCATION.key(),
+                                    sparkRuntimeEnvironment.getCheckpointPath())
+                            .outputMode(OutputMode.Append())
+                            .trigger(
+                                    Trigger.Continuous(
+                                            sparkRuntimeEnvironment.getCheckpointInterval()))
+                            .start()
+                            .awaitTermination();
                 } catch (StreamingQueryException e) {
                     throw new SeaTunnelException(
-                        String.format("Spark Streaming checkpoint exception."), e);
+                            String.format("Spark Streaming checkpoint exception."), e);
                 }
             }
         }
