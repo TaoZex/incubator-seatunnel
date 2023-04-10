@@ -19,6 +19,7 @@ package org.apache.seatunnel.core.starter.spark.execution;
 
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
+import org.apache.seatunnel.api.env.EnvCommonOptions;
 import org.apache.seatunnel.common.Constants;
 import org.apache.seatunnel.common.config.CheckResult;
 import org.apache.seatunnel.common.constants.JobMode;
@@ -27,8 +28,6 @@ import org.apache.seatunnel.core.starter.execution.RuntimeEnvironment;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.streaming.Seconds;
-import org.apache.spark.streaming.StreamingContext;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,8 +43,6 @@ public class SparkRuntimeEnvironment implements RuntimeEnvironment {
     private SparkConf sparkConf;
 
     private SparkSession sparkSession;
-
-    private StreamingContext streamingContext;
 
     private Config config;
 
@@ -111,16 +108,11 @@ public class SparkRuntimeEnvironment implements RuntimeEnvironment {
             builder.enableHiveSupport();
         }
         this.sparkSession = builder.getOrCreate();
-        createStreamingContext();
         return this;
     }
 
     public SparkSession getSparkSession() {
         return this.sparkSession;
-    }
-
-    public StreamingContext getStreamingContext() {
-        return this.streamingContext;
     }
 
     public SparkConf getSparkConf() {
@@ -130,24 +122,14 @@ public class SparkRuntimeEnvironment implements RuntimeEnvironment {
     private SparkConf createSparkConf() {
         SparkConf sparkConf = new SparkConf();
         this.config
-                .entrySet()
-                .forEach(
-                        entry ->
-                                sparkConf.set(
-                                        entry.getKey(),
-                                        String.valueOf(entry.getValue().unwrapped())));
+            .entrySet()
+            .forEach(
+                entry ->
+                    sparkConf.set(
+                        entry.getKey(),
+                        String.valueOf(entry.getValue().unwrapped())));
         sparkConf.setAppName(jobName);
         return sparkConf;
-    }
-
-    private void createStreamingContext() {
-        SparkConf conf = this.sparkSession.sparkContext().getConf();
-        long duration =
-                conf.getLong("spark.stream.batchDuration", DEFAULT_SPARK_STREAMING_DURATION);
-        if (this.streamingContext == null) {
-            this.streamingContext =
-                    new StreamingContext(sparkSession.sparkContext(), Seconds.apply(duration));
-        }
     }
 
     protected boolean checkIsContainHive(Config config) {
@@ -164,6 +146,20 @@ public class SparkRuntimeEnvironment implements RuntimeEnvironment {
             }
         }
         return false;
+    }
+
+    public long getCheckpointInterval() {
+        if (config.hasPath(EnvCommonOptions.CHECKPOINT_INTERVAL.key())) {
+            return config.getLong(EnvCommonOptions.CHECKPOINT_INTERVAL.key());
+        }
+        return sparkConf.getLong(EnvCommonOptions.CHECKPOINT_INTERVAL.key(), DEFAULT_SPARK_STREAMING_DURATION);
+    }
+
+    public String getCheckpointPath(){
+        if(config.hasPath(SparkExecuteOption.CHECKPOINT_LOCATION.key())){
+            return config.getString(SparkExecuteOption.CHECKPOINT_LOCATION.key());
+        }
+        return sparkConf.get(SparkExecuteOption.CHECKPOINT_LOCATION.key(), SparkExecuteOption.CHECKPOINT_LOCATION.defaultValue());
     }
 
     public static SparkRuntimeEnvironment getInstance(Config config) {

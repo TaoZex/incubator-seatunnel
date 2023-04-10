@@ -37,9 +37,11 @@ import org.apache.seatunnel.translation.spark.utils.TypeConverterUtils;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
+import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 
 import com.google.common.collect.Lists;
+import org.apache.spark.sql.streaming.Trigger;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -126,13 +128,14 @@ public class SinkExecuteProcessor
 
             if (sparkRuntimeEnvironment.getJobMode().equals(JobMode.BATCH)) {
                 SparkSinkInjector.inject(dataset.write(), seaTunnelSink)
-                        .option("checkpointLocation", "/tmp")
                         .mode(SaveMode.Append)
                         .save();
             } else {
                 try {
                     SparkSinkInjector.inject(dataset.writeStream(), seaTunnelSink)
-                            .option("checkpointLocation", "/tmp")
+                            .option(SparkExecuteOption.CHECKPOINT_LOCATION.key(), sparkRuntimeEnvironment.getCheckpointPath())
+                            .outputMode(OutputMode.Append())
+                            .trigger(Trigger.Continuous(sparkRuntimeEnvironment.getCheckpointInterval()))
                             .start()
                             .awaitTermination();
                 } catch (StreamingQueryException | TimeoutException e) {
