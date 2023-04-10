@@ -4,8 +4,9 @@ import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 
 public interface SparkExecuteOption {
+
     Option<String> CHECKPOINT_LOCATION =
-        Options.key("checkpoint.interval")
+        Options.key("checkpointLocation")
             .stringType()
             .defaultValue("/tmp")
             .withDescription("Spark checkpoint path, default is /tmp," +
