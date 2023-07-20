@@ -92,28 +92,5 @@ as an example, when you run it successfully you could see the output as below:
 +I[Ricky Huo, 83]
 ```
 
-## What's More
 
-All our examples use simple source and sink to make it less dependent and easy to run. You can change the example configuration
-in `resources/examples`. You could change your configuration as below, if you want to use PostgreSQL as the source and
-sink to console.
-
-```conf
-env {
-  execution.parallelism = 1
-}
-
-source {
-  JdbcSource {
-    driver = org.postgresql.Driver
-    url = "jdbc:postgresql://host:port/database"
-    username = postgres
-    query = "select * from test"
-  }
-}
-
-sink {
-  ConsoleSink {}
-}
-```
 
